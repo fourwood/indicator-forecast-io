@@ -279,6 +279,25 @@ class ForecastInd:
         vis.show()
         self.menu.append(vis)
 
+        hms_format = '%I:%M:%S %p'
+        today = self.forecast.daily.data[0]
+
+        sunrise_time = today.sunriseTime.strftime('%I:%M:%S %p')
+        sunrise_time = sunrise_time.lstrip('0')
+        label = 'Sunrise: {0}'.format(sunrise_time)
+        sunrise = Gtk.MenuItem(label)
+        #sunrise.connect("activate", foo)
+        sunrise.show()
+        self.menu.append(sunrise)
+
+        sunset_time = today.sunsetTime.strftime('%I:%M:%S %p')
+        sunset_time = sunset_time.lstrip('0')
+        label = 'Sunset: {0}'.format(sunset_time)
+        sunset = Gtk.MenuItem(label)
+        #sunset.connect("activate", foo)
+        sunset.show()
+        self.menu.append(sunset)
+
         if self.has_alerts:
             separator = Gtk.SeparatorMenuItem()
             separator.show()
