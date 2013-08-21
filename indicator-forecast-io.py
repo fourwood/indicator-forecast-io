@@ -116,9 +116,7 @@ class ForecastInd:
         self.ind.set_status(AppIndicator.IndicatorStatus.ACTIVE)
 
         g = geocoders.GoogleV3()
-        #self.location = "6114 SW 39th St, Topeka, KS 66610"
-        #self.location = "215 29th St, Boulder, CO 80305"
-        self.location = "643 E Johnson St, Madison, WI 53703"
+        self.location = "53703"
         self.place, (self.latitude, self.longitude) = g.geocode(self.location)
         #self.latitude = 38.996269
         #self.longitude = -95.76602
@@ -297,6 +295,34 @@ class ForecastInd:
         #sunset.connect("activate", foo)
         sunset.show()
         self.menu.append(sunset)
+
+        separator = Gtk.SeparatorMenuItem()
+        separator.show()
+        self.menu.append(separator)
+
+        separator = Gtk.SeparatorMenuItem()
+        separator.show()
+        self.menu.append(separator)
+
+        self.n_days = 5
+        five_day_menu = Gtk.Menu()
+        five_day = Gtk.MenuItem("Five-day forecast")
+        five_day.set_submenu(five_day_menu)
+        five_day.show()
+        self.menu.append(five_day)
+        days = self.forecast.daily.data[:self.n_days]
+        for day in days:
+            date_fmt = '%a %b %d'
+            date = day.time.strftime(date_fmt)
+            high = round(day.temperatureMax)
+            low = round(day.temperatureMin)
+            unit = UNITS[self.units]['temperature']
+            label = "{0}: H: {1}{2} L: {3}{4}".format(date, high, unit, low, unit)
+            day_item = Gtk.MenuItem(label)
+            #day_item.connect("activate", foo, data)
+            day_item.show()
+            five_day_menu.append(day_item)
+        five_day_menu.show()
 
         if self.has_alerts:
             separator = Gtk.SeparatorMenuItem()
