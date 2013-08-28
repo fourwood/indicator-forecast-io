@@ -300,10 +300,6 @@ class ForecastInd:
         separator.show()
         self.menu.append(separator)
 
-        separator = Gtk.SeparatorMenuItem()
-        separator.show()
-        self.menu.append(separator)
-
         self.n_days = 5
         five_day_menu = Gtk.Menu()
         five_day = Gtk.MenuItem("Five-day forecast")
