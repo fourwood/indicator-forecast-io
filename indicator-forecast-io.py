@@ -116,10 +116,13 @@ class ForecastInd:
         self.ind.set_status(AppIndicator.IndicatorStatus.ACTIVE)
 
         g = geocoders.GoogleV3()
-        self.location = "53703"
-        self.place, (self.latitude, self.longitude) = g.geocode(self.location)
-        #self.latitude = 38.996269
-        #self.longitude = -95.76602
+        try:
+            self.place, (self.latitude, self.longitude) = g.geocode(self.location)
+            self.has_location = True
+        except:
+            self.has_location = False
+            self.latitude = 38.954292
+            self.longitude = -95.252788
 
         self.has_alerts = False
 
@@ -397,14 +400,15 @@ class ForecastInd:
 
     def update(self):
         # Only the framework for handling errors... should do better
-        try:
-            self.forecast = self._get_forecast()
-            self.units = self.forecast.flags.units
-            self._build_menu()
-            return True
-        except Exception as error:
-            raise error
-            #return False
+        if self.has_location:
+            try:
+                self.forecast = self._get_forecast()
+                self.units = self.forecast.flags.units
+                self._build_menu()
+                return True
+            except Exception as error:
+                raise error
+                #return False
 
     def main(self):
         self.timer = GLib.timeout_add(self.UPDATE_INTERVAL,
