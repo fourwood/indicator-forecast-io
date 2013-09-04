@@ -116,7 +116,6 @@ class ForecastInd:
         self.ind.set_status(AppIndicator.IndicatorStatus.ACTIVE)
 
         g = geocoders.GoogleV3()
-        print("Looking up the location.")
         try:
             self.place, (self.latitude, self.longitude) = g.geocode(self.location)
             self.has_location = True
@@ -400,7 +399,6 @@ class ForecastInd:
         Gtk.main_quit()
 
     def update(self):
-        print("Updating...")
         # Only the framework for handling errors... should do better
         if self.has_location:
             try:
@@ -413,7 +411,6 @@ class ForecastInd:
                 #return False
 
     def main(self):
-        print("In main.")
         self.timer = GLib.timeout_add(self.UPDATE_INTERVAL,
                 self.update)
         Gtk.main()
