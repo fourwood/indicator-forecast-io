@@ -116,6 +116,7 @@ class ForecastInd:
         self.ind.set_status(AppIndicator.IndicatorStatus.ACTIVE)
 
         g = geocoders.GoogleV3()
+        self.location = 53703
         try:
             self.place, (self.latitude, self.longitude) = g.geocode(self.location)
             self.has_location = True
@@ -316,8 +317,13 @@ class ForecastInd:
             high = round(day.temperatureMax)
             low = round(day.temperatureMin)
             unit = UNITS[self.units]['temperature']
+            icon = ICONS[day.icon]
             label = "{0}: H: {1}{2} L: {3}{4}".format(date, high, unit, low, unit)
-            day_item = Gtk.MenuItem(label)
+            day_item = Gtk.ImageMenuItem(label)
+            day_item.set_always_show_image(True)
+            img = Gtk.Image()
+            img.set_from_file(icon)
+            day_item.set_image(img)
             #day_item.connect("activate", foo, data)
             day_item.show()
             five_day_menu.append(day_item)
