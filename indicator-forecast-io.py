@@ -15,7 +15,7 @@ from collections import namedtuple
 from geopy import geocoders
 import math
 
-keyfile = open('api.key', 'r')
+keyfile = open('/home/fourwood/src/indicator-forecast-io/api.key', 'r')
 API_KEY = keyfile.readline().strip()
 keyfile.close()
 
@@ -63,7 +63,6 @@ ICONS = {'clear-day': _icon_theme.lookup_icon('weather-clear', 0, 0).get_filenam
         'alert': _icon_theme.lookup_icon('weather-severe-alert', 0, 0).get_filename(),
         'other': _icon_theme.lookup_icon('weather-severe-alert', 0, 0).get_filename()}
 
-"""
 class Settings:
     db = None
     BASE_KEY = 'apps.indicators.forecast-io'
@@ -77,54 +76,42 @@ class Settings:
             pass
 
 class PrefsDialog:
-    def __init__(self):#, callback):
+    def __init__(self, callback):
         builder = Gtk.Builder()
-        builder.add_from_file("/home/fourwood/src/indicator-countdown/settings.ui")
-        self.window = builder.get_object("settings_window")
+        builder.add_from_file("/home/fourwood/src/indicator-forecast-io/settings.glade")
+        self.window = builder.get_object("settings_wnd")
 
         self.callback = callback
 
+        self._loc = builder.get_object("loc_entry")
+        self._loc.connect('activate', self.clicked_ok)
         self._ok_btn = builder.get_object("ok_btn")
         self._ok_btn.connect('clicked', self.clicked_ok)
         self._cancel_btn = builder.get_object("cancel_btn")
         self._cancel_btn.connect('clicked', self.clicked_cancel)
 
-        self._calendar = builder.get_object("calendar")
-        self._time = builder.get_object("time_entry")
-        self._am = builder.get_object("am_radio")
-        self._pm = builder.get_object("pm_radio")
-
         self.builder = builder
 
     def clicked_ok(self, widget):
-        time = self._time.get_text()
-        date = self._calendar.get_date()
-        is_am = (self._pm.get_active() and not self._am.get_active())
-        self.callback(date, time, is_am)
+        loc = self._loc.get_text()
         self.window.hide()
+        self.callback(loc)
 
     def clicked_cancel(self, widget):
         self.window.hide()
-"""
 
 class ForecastInd:
     def __init__(self):
-        self.UPDATE_INTERVAL = 15 * _MINUTES
+        self.SETTINGS_KEY = "apps.indicator-forecast-io"
+        self._read_settings()
+
+        self.UPDATE_INTERVAL = 10 * _MINUTES
         self.ind = AppIndicator.Indicator.new("forecast-io-indicator",
                 "forecast-io-indicator",
                 AppIndicator.IndicatorCategory.OTHER);
         self.ind.set_status(AppIndicator.IndicatorStatus.ACTIVE)
 
-        g = geocoders.GoogleV3()
-        self.location = 53703
-        try:
-            self.place, (self.latitude, self.longitude) = g.geocode(self.location)
-            self.has_location = True
-        except:
-            self.has_location = True
-            self.latitude = 38.954292
-            self.longitude = -95.252788
-
+        self._resolve_loc(self.location)
         self.has_alerts = False
 
         #self.settings = Settings()
@@ -133,19 +120,45 @@ class ForecastInd:
         #self.target_time = self.settings.get_value("target_time")
         self.update()
 
+    def _resolve_loc(self, loc):
+        g = geocoders.GoogleV3()
+        try:
+            self.place, (self.latitude, self.longitude) = g.geocode(self.location)
+            self.has_location = True
+        except:
+            self.has_location = True
+            self.latitude = 38.954292
+            self.longitude = -95.252788
+
+
+    def _read_settings(self):
+        self.dconf = Gio.Settings.new(self.SETTINGS_KEY)
+        self.location = self.dconf.get_string('location')
+
+    def _write_settings(self):
+        success = self.dconf.set_string('location', self.location)
+        #print("Writing settings: {0}".format(success))
+
     def _get_forecast(self):
         return forecast_io.get_forecast(API_KEY, self.latitude, self.longitude)
 
     def _prefs(self, widget):
-        #if ((not hasattr(self, 'prefs_wind')) or (not self.prefs_wind.get_visible())):
-        #    self.prefs_wind = PrefsDialog()
-        #    self.prefs_wind.show()
-        #self.prefs_window = PrefsDialog(self.prefs_callback)
-        #self.prefs_window.window.show()
+        #if ((not hasattr(self, 'prefs_window')) or (not self.prefs_window.get_visible())):
+        #    self.prefs_window = PrefsDialog(self._prefs_callback)
+        #    self.prefs_window.show()
+
+        self.prefs_window = PrefsDialog(self._prefs_callback)
+        self.prefs_window._loc.set_text(self.location)
+        Gtk.Editable.select_region(self.prefs_window._loc,
+                                  0, -1)
+        self.prefs_window.window.show()
         pass
 
-    def _prefs_callback(self, date, time, is_pm):
-        pass
+    def _prefs_callback(self, loc):
+        self.location = str(loc)
+        self._write_settings()
+        self._resolve_loc(self.location)
+        self.update()
 
     def _get_wind_direction(self, bearing):
         if bearing < 22.5:
@@ -169,23 +182,27 @@ class ForecastInd:
 
         return direction
 
-    def _calc_heat_index(self, T, H):
-        if T < 80:
-            index = T
-        else:
-            c = [0, -42.379, 2.04901523, 10.14333127, -0.22475541,
-                    -6.83783e-3, -5.481717e-2, 1.22874e-3,
-                    8.5282e-4, -1.99e-6]
-            index = c[1] + c[2] * T + c[3] * H + c[4] * T * H + \
-                    c[5] * T**2 + c[6] * H**2 + c[7] * T**2 * H + \
-                    c[8] * T * H**2 + c[9] * T**2 * H**2
+    def _calc_wind_chill(self, T, wind):
+        return (35.74 + 0.6215 * T - 35.75* wind**0.16 \
+                + 0.4275 * T * wind**0.16)
 
-            adjustment = 0
-            if H < 13:
-                adjustment = -(13-H)/4 * math.sqrt((17-abs(T-95.))/17.)
-            elif (H > 85) and (T >= 80) and (T <= 87):
-                adjustment = ((H-85)/10) * ((87-T)/5)
-            index += adjustment
+    def _calc_heat_index(self, T, H):
+        #if T < 80:
+        #    index = T
+        #else:
+        c = [0, -42.379, 2.04901523, 10.14333127, -0.22475541,
+                -6.83783e-3, -5.481717e-2, 1.22874e-3,
+                8.5282e-4, -1.99e-6]
+        index = c[1] + c[2] * T + c[3] * H + c[4] * T * H + \
+                c[5] * T**2 + c[6] * H**2 + c[7] * T**2 * H + \
+                c[8] * T * H**2 + c[9] * T**2 * H**2
+
+        adjustment = 0
+        if H < 13:
+            adjustment = -(13-H)/4 * math.sqrt((17-abs(T-95.))/17.)
+        elif (H > 85) and (T >= 80) and (T <= 87):
+            adjustment = ((H-85)/10) * ((87-T)/5)
+        index += adjustment
 
         return index
 
@@ -246,14 +263,29 @@ class ForecastInd:
         humidity.show()
         self.menu.append(humidity)
 
-        index = round(self._calc_heat_index(T, H))
-        if index > T:
+        if T > 80:
+            index = round(self._calc_heat_index(T, H))
+            chill = None
+        elif T < 50:
+            chill = round(self._calc_wind_chill(T, cur.windSpeed))
+            index = None
+        else:
+            chill = None
+            index = None
+        if index is not None:
             unit = UNITS[self.units]['temperature']
             label = 'Heat index: {0}{1}'.format(index, unit)
             heat_index = Gtk.MenuItem(label)
             #heat_index.connect("activate", foo)
             heat_index.show()
             self.menu.append(heat_index)
+        if chill is not None:
+            unit = UNITS[self.units]['temperature']
+            label = 'Wind chill: {0}{1}'.format(chill, unit)
+            wind_chill = Gtk.MenuItem(label)
+            #heat_index.connect("activate", foo)
+            wind_chill.show()
+            self.menu.append(wind_chill)
 
         unit = UNITS[self.units]['temperature']
         label = 'Dew point: {0}{1}'.format(round(cur.dewPoint), unit)
@@ -377,7 +409,7 @@ class ForecastInd:
         """
 
         pref = Gtk.MenuItem("Preferences")
-        #pref.connect("activate", self.prefs_box)
+        pref.connect("activate", self._prefs)
         pref.show()
         self.menu.append(pref)
 

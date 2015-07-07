@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+    <schema id="apps.indicator-forecast-io" path="/apps/indicator-forecast-io/">
+        <key name="location" type="s">
+            <default>'80305'</default>
+            <summary>Location</summary>
+            <description></description>
+        </key>
+    </schema>
+</schemalist>
